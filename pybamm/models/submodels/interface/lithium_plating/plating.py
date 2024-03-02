@@ -76,16 +76,24 @@ class Plating(BasePlating):
 
         lithium_plating_option = getattr(self.options, domain)["lithium plating"]
         if lithium_plating_option in ["reversible", "partially reversible"]:
-            j_stripping = j0_stripping * pybamm.exp(
+            j_lithium = j0_stripping * pybamm.exp(
                 F_RT * alpha_stripping * eta_stripping
             ) - j0_plating * pybamm.exp(F_RT * alpha_plating * eta_plating)
         elif lithium_plating_option == "irreversible":
             # j_stripping is always negative, because there is no stripping, only
             # plating
-            j_stripping = -j0_plating * pybamm.exp(F_RT * alpha_plating * eta_plating)
+            # j_stripping = -j0_plating * pybamm.exp(F_RT * alpha_plating * eta_plating)
+            j_lithium = (
+                j0_plating
+                * (
+                    pybamm.exp(F_RT * alpha_stripping * eta_stripping)
+                    - pybamm.exp(F_RT * alpha_plating * eta_plating)
+                )
+                * pybamm.EqualHeaviside(-eta_plating, 0)
+            )
 
         variables.update(self._get_standard_overpotential_variables(eta_stripping))
-        variables.update(self._get_standard_reaction_variables(j_stripping))
+        variables.update(self._get_standard_reaction_variables(j_lithium))
 
         # Update whole cell variables, which also updates the "sum of" variables
         variables.update(super().get_coupled_variables(variables))
@@ -95,12 +103,8 @@ class Plating(BasePlating):
     def set_rhs(self, variables):
         domain, Domain = self.domain_Domain
         if self.x_average is True:
-            c_plated_Li = variables[
-                f"X-averaged {domain} lithium plating concentration [mol.m-3]"
-            ]
-            c_dead_Li = variables[
-                f"X-averaged {domain} dead lithium concentration [mol.m-3]"
-            ]
+            c_plated_Li = variables[f"X-averaged {domain} lithium plating concentration [mol.m-3]"]
+            c_dead_Li = variables[f"X-averaged {domain} dead lithium concentration [mol.m-3]"]
             a_j_stripping = variables[
                 f"X-averaged {domain} lithium plating volumetric "
                 "interfacial current density [A.m-3]"
@@ -110,8 +114,7 @@ class Plating(BasePlating):
             c_plated_Li = variables[f"{Domain} lithium plating concentration [mol.m-3]"]
             c_dead_Li = variables[f"{Domain} dead lithium concentration [mol.m-3]"]
             a_j_stripping = variables[
-                f"{Domain} lithium plating volumetric "
-                "interfacial current density [A.m-3]"
+                f"{Domain} lithium plating volumetric " "interfacial current density [A.m-3]"
             ]
             L_sei = variables[f"{Domain} total SEI thickness [m]"]
 
@@ -140,12 +143,8 @@ class Plating(BasePlating):
     def set_initial_conditions(self, variables):
         domain, Domain = self.domain_Domain
         if self.x_average is True:
-            c_plated_Li = variables[
-                f"X-averaged {domain} lithium plating concentration [mol.m-3]"
-            ]
-            c_dead_Li = variables[
-                f"X-averaged {domain} dead lithium concentration [mol.m-3]"
-            ]
+            c_plated_Li = variables[f"X-averaged {domain} lithium plating concentration [mol.m-3]"]
+            c_dead_Li = variables[f"X-averaged {domain} dead lithium concentration [mol.m-3]"]
         else:
             c_plated_Li = variables[f"{Domain} lithium plating concentration [mol.m-3]"]
             c_dead_Li = variables[f"{Domain} dead lithium concentration [mol.m-3]"]
