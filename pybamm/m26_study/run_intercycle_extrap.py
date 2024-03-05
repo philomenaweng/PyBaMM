@@ -1,13 +1,21 @@
 import pybamm
+import argparse
 
 from pybamm.m26_study.m26_params import get_parameter_values
 from pybamm.m26_study.pybamm_sim import pybamm_sim
 
 if __name__ == "__main__":
-    trial_name = "003_100%dod"
-    c_rate = "C/4"
-    toc_v = 4.2
-    bod_v = 3
+    parser = argparse.ArgumentParser()
+    parser.add_argument("trial_name", type=str, help="Trial name")
+    parser.add_argument("c_rate", type=str, help="C-rate")
+    parser.add_argument("toc_v", type=float, help="TOC voltage")
+    parser.add_argument("bod_v", type=float, help="BOD voltage")
+    args = parser.parse_args()
+
+    trial_name = args.trial_name
+    c_rate = args.c_rate
+    toc_v = args.toc_v
+    bod_v = args.bod_v
 
     exp = pybamm.Experiment(
         [
@@ -60,6 +68,7 @@ if __name__ == "__main__":
             print(e)
             run_flag = False
             break
+    sim.save_data()
 
     while run_flag and sim.n_total_cycles[-1] <= 9999:
         try:
@@ -69,5 +78,8 @@ if __name__ == "__main__":
             print(e)
             run_flag = False
             break
+
+        if len(sim.n_total_cycles) % 10 == 0:
+            sim.save_data()
 
     sim.save_data()
