@@ -142,6 +142,27 @@ class pybamm_sim:
         sim_steps_df["cycle_number"] = self.n_total_cycles[-1]
         self.sim_steps_df.append(sim_steps_df)
 
+    def check_if_completed(self):
+        """
+        Check if the simulation is completed.
+
+        Returns:
+            bool: True if the simulation is completed, False otherwise.
+
+        """
+        steps_df = self.sim_steps_df[-1]
+        exp_steps = self.experiment.operating_conditions_steps
+
+        n_steps = len(list(filter(lambda x: not x.description.startswith("Hold"), exp_steps)))
+        assert len(steps_df) == n_steps, "Simulation did not complete all steps."
+
+        if steps_df["step_type_first"].iloc[-1] == "rest":
+            assert (
+                steps_df["step_time_s"].iloc[-1] >= exp_steps[-1].duration - 11
+            ), "Simulation did not complete last step."
+        else:
+            raise ValueError("Simulation did not end with a rest step.")
+
     def track_states(self):
         """
         Track battery state at beginning of cycle
@@ -291,6 +312,7 @@ class pybamm_sim:
         self.solve(start_voltage=start_voltage)
         self.create_output()
         self.agg_steps()
+        self.check_if_completed()
         self.track_states()
         if self.save_flag:
             self.save()
