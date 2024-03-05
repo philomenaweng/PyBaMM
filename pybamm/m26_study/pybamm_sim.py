@@ -47,12 +47,12 @@ class pybamm_sim:
         experiment,
         var_pts={"x_n": 100, "x_s": 10, "x_p": 10, "r_n": 10, "r_p": 10},
         version="000",
+        save=True,
     ):
         self.model = pybamm.lithium_ion.DFN(options=options)
         self.parameter_values = parameters.copy()
         self.experiment = experiment
         self.var_pts = var_pts
-        self.solutions = []
         self.sim_dfs = []
         self.sim_steps_df = []
         self.parameters_list = []
@@ -60,22 +60,24 @@ class pybamm_sim:
         self.n_extrapolated = 0
         self.state_variables = []
         self.fname = f"{data_dir}/trial{version}"
-        os.makedirs(self.fname, exist_ok=False)
-        with open(f"{self.fname}/options.pkl", "wb") as f:
-            pickle.dump(options, f)
-        with open(f"{self.fname}/experiment.pkl", "wb") as f:
-            pickle.dump(experiment, f)
-        with open(f"{self.fname}/parameters.pkl", "wb") as f:
-            pickle.dump(parameters, f)
-        with open(f"{self.fname}/var_pts.pkl", "wb") as f:
-            pickle.dump(var_pts, f)
+        self.save_flag = save
+        if self.save_flag:
+            os.makedirs(self.fname, exist_ok=False)
+            with open(f"{self.fname}/options.pkl", "wb") as f:
+                pickle.dump(options, f)
+            with open(f"{self.fname}/experiment.pkl", "wb") as f:
+                pickle.dump(experiment, f)
+            with open(f"{self.fname}/parameters.pkl", "wb") as f:
+                pickle.dump(parameters, f)
+            with open(f"{self.fname}/var_pts.pkl", "wb") as f:
+                pickle.dump(var_pts, f)
 
     def solve(self, start_voltage: float = 3.6):
         self.sim = pybamm.Simulation(
             self.model,
             parameter_values=self.parameter_values,
             experiment=self.experiment,
-            solver=pybamm.CasadiSolver(return_solution_if_failed_early=True, dt_max=0.1),
+            solver=pybamm.CasadiSolver(return_solution_if_failed_early=False, dt_max=0.1),
             var_pts=self.var_pts,
         )
         self.parameters_list.append(self.parameter_values.copy())
@@ -83,7 +85,7 @@ class pybamm_sim:
         solution = self.sim.solve(
             showprogress=False, initial_soc=f"{start_voltage} V", calc_esoh=False
         )
-        self.solutions.append(solution)
+        self.solution = solution
         self.n_total_cycles.append(int(n_cycle))
 
     def save(self):
@@ -108,7 +110,7 @@ class pybamm_sim:
 
     def create_output(self):
         sim_df = pd.DataFrame()
-        soln = self.solutions[-1]
+        soln = self.solution
         sim_df["total_time_s"] = soln["Time [s]"].entries
         sim_df["voltage"] = soln["Terminal voltage [V]"].entries
         sim_df["current"] = soln["Current [A]"].entries
@@ -141,23 +143,17 @@ class pybamm_sim:
         self.sim_steps_df.append(sim_steps_df)
 
     def track_states(self):
-        n_lithium = self.solutions[-1]["Total lithium in particles [mol]"].entries[0]
-        am_neg = (
-            self.solutions[-1]["Negative electrode active material volume fraction"]
-            .entries[0]
-            .mean()
-        )
-        am_pos = (
-            self.solutions[-1]["Positive electrode active material volume fraction"]
-            .entries[0]
-            .mean()
-        )
-        min_porosity_neg = self.solutions[-1]["Negative electrode porosity"].entries[0, :].min()
-        sei_neg = self.solutions[-1]["Negative electrode sei thickness [m]"].entries[0, :].mean()
+        """
+        Track battery state at beginning of cycle
+        """
+        soln = self.solution
+        n_lithium = soln["Total lithium in particles [mol]"].entries[0]
+        am_neg = soln["Negative electrode active material volume fraction"].entries[0].mean()
+        am_pos = soln["Positive electrode active material volume fraction"].entries[0].mean()
+        min_porosity_neg = soln["Negative electrode porosity"].entries[0, :].min()
+        sei_neg = soln["Negative total SEI thickness [m]"].entries[0, :].mean()
         li_neg = (
-            self.solutions[-1]["X-averaged negative lithium plating concentration [mol.m-3]"]
-            .entries[0]
-            .mean()
+            soln["X-averaged negative lithium plating concentration [mol.m-3]"].entries[0].mean()
         )
 
         self.state_variables.append(
@@ -202,16 +198,16 @@ class pybamm_sim:
                 0,
             ),
         }
-
+        soln = self.solution
         for var_name, (yvar_min, yvar_max, param_name, ndim) in extrap_vars.items():
             yvar_start, yvar_delta, n_delta_max = self._find_max_ndelta_from_state(
                 var_name, yvar_max, yvar_min
             )
 
             n_delta = int(min(n_delta, n_delta_max / 2))
-            extrap_vars[var_name] = (yvar_start, yvar_delta, param_name, ndim)
+            extrap_vars[var_name] = (yvar_start, yvar_delta, param_name, ndim, n_delta_max)
 
-        for var_name, (yvar_start, yvar_delta, param_name, ndim) in extrap_vars.items():
+        for var_name, (yvar_start, yvar_delta, param_name, ndim, _) in extrap_vars.items():
             yvar_new = yvar_start + n_delta * yvar_delta
 
             if ndim == 0:
@@ -219,9 +215,9 @@ class pybamm_sim:
             elif ndim == 1:
 
                 if "negative" in var_name.lower():
-                    xarr = self.solutions[-1]["x_n [m]"].entries[:, 0]
+                    xarr = soln["x_n [m]"].entries[:, 0]
                 elif "positive" in var_name.lower():
-                    xarr = self.solutions[-1]["x_p [m]"].entries[:, 0]
+                    xarr = soln["x_p [m]"].entries[:, 0]
                 else:
                     raise ValueError("variable not implemented")
 
@@ -237,7 +233,8 @@ class pybamm_sim:
                 raise ValueError("variable dimension not implemented")
         if n_delta <= 0:
             n_delta = 1
-        print(f"Extrapolated {n_delta} cycles")
+        smallest_var = min(extrap_vars, key=lambda x: extrap_vars[x][-1])
+        print(f"Extrapolated {n_delta} cycles. Smallest n_delta from {smallest_var}.")
 
         self.n_extrapolated = n_delta
         return extrap_vars
@@ -255,13 +252,14 @@ class pybamm_sim:
             tuple: Tuple containing the start value, delta value, and maximum number of cycles.
 
         """
-        yvar = self.solutions[-1][var_name].entries
+        soln = self.solution
+        yvar = soln[var_name].entries
 
         steps_df = self.sim_steps_df[-1]
         time_start = steps_df.loc[steps_df["step_type_first"] == "rest", "total_time_s_last"].iloc[
             0
         ]
-        idx_start = np.where(self.solutions[-1]["Time [s]"].entries == time_start)[0][0]
+        idx_start = np.where(soln["Time [s]"].entries == time_start)[0][0]
 
         if yvar.ndim == 1:
             yvar_start = yvar[idx_start]
@@ -294,7 +292,8 @@ class pybamm_sim:
         self.create_output()
         self.agg_steps()
         self.track_states()
-        self.save()
+        if self.save_flag:
+            self.save()
 
     def save_data(self):
         """
@@ -304,7 +303,15 @@ class pybamm_sim:
         sim_df = pd.concat(self.sim_dfs)
         steps_df = pd.concat(self.sim_steps_df)
         sod_df = pd.DataFrame(
-            self.state_variables, columns=["am_pos", "am_neg", "n_lithium", "min_porosity_neg"]
+            self.state_variables,
+            columns=[
+                "am_pos",
+                "am_neg",
+                "n_lithium_mol",
+                "min_porosity_neg",
+                "sei_neg_m",
+                "li_neg_M",
+            ],
         )
         sod_df["cycle_number"] = self.n_total_cycles[1:]
         save_df = {
