@@ -1,4 +1,3 @@
-import os
 import pickle
 import numpy as np
 import pandas as pd
@@ -46,7 +45,7 @@ class pybamm_sim:
         parameters,
         experiment,
         var_pts={"x_n": 100, "x_s": 10, "x_p": 10, "r_n": 10, "r_p": 10},
-        version="000",
+        version="trial000",
         save=True,
     ):
         self.model = pybamm.lithium_ion.DFN(options=options)
@@ -59,10 +58,9 @@ class pybamm_sim:
         self.n_total_cycles = [0]
         self.n_extrapolated = 0
         self.state_variables = []
-        self.fname = f"{data_dir}/trial{version}"
+        self.fname = f"{data_dir}/{version}"
         self.save_flag = save
         if self.save_flag:
-            os.makedirs(self.fname, exist_ok=False)
             with open(f"{self.fname}/options.pkl", "wb") as f:
                 pickle.dump(options, f)
             with open(f"{self.fname}/experiment.pkl", "wb") as f:
@@ -169,13 +167,11 @@ class pybamm_sim:
         """
         soln = self.solution
         n_lithium = soln["Total lithium in particles [mol]"].entries[0]
-        am_neg = soln["Negative electrode active material volume fraction"].entries[0].mean()
-        am_pos = soln["Positive electrode active material volume fraction"].entries[0].mean()
-        min_porosity_neg = soln["Negative electrode porosity"].entries[0, :].min()
-        sei_neg = soln["Negative total SEI thickness [m]"].entries[0, :].mean()
-        li_neg = (
-            soln["X-averaged negative lithium plating concentration [mol.m-3]"].entries[0].mean()
-        )
+        am_neg = soln["Negative electrode active material volume fraction"].entries[0]
+        am_pos = soln["Positive electrode active material volume fraction"].entries[0]
+        min_porosity_neg = soln["Negative electrode porosity"].entries[:, 0].min()
+        sei_neg = soln["Negative total SEI thickness [m]"].entries[:, 0].mean()
+        li_neg = soln["X-averaged negative lithium plating concentration [mol.m-3]"].entries[0]
 
         self.state_variables.append(
             [
@@ -207,12 +203,18 @@ class pybamm_sim:
             ),
             "Negative electrode porosity": (
                 0,
-                self.parameter_values["Negative electrode porosity"],
+                0.25,
                 "Negative electrode porosity",
                 1,
             ),
             "Negative outer SEI thickness [m]": (0, 1e8, "Initial outer SEI thickness [m]", 0),
-            "X-averaged negative lithium plating concentration [mol.m-3]": (
+            # "X-averaged negative dead lithium concentration [mol.m-3]": (
+            #     0,
+            #     1e8,
+            #     "Initial plated lithium concentration [mol.m-3]",
+            #     0,
+            # ),
+            "Negative dead lithium concentration [mol.m-3]": (
                 0,
                 1e8,
                 "Initial plated lithium concentration [mol.m-3]",
@@ -283,23 +285,37 @@ class pybamm_sim:
         idx_start = np.where(soln["Time [s]"].entries == time_start)[0][0]
 
         if yvar.ndim == 1:
-            yvar_start = yvar[idx_start]
+            yvar_start = np.around(yvar[idx_start], 16)
             yvar_end = yvar[-1]
 
         elif yvar.ndim == 2:
-            yvar_start = yvar[:, idx_start]
+            yvar_start = np.around(yvar[:, idx_start], 16)
             yvar_end = yvar[:, -1]
 
         else:
             raise ValueError("variable dimension not implemented")
 
-        yvar_delta = yvar_end - yvar_start
+        yvar_delta = np.around(yvar_end - yvar_start, 16)
         if np.all(yvar_delta > 0):
             n_delta_max = np.floor((yvar_max - yvar_start) / yvar_delta).min()
-        else:
+        elif np.all(yvar_delta < 0):
             n_delta_max = np.floor((yvar_min - yvar_start) / yvar_delta).min()
+        else:
+            n_delta_max = 1e5
 
-        return yvar_start, yvar_delta, n_delta_max
+        if np.abs(yvar_delta).min() > 0:
+            n_delta_max_lim = np.floor(((yvar_max - yvar_min) * 0.05 / np.abs(yvar_delta)).min())
+        else:
+            n_delta_max_lim = 1e5
+
+        if var_name == "X-averaged negative dead lithium concentration [mol.m-3]":
+            yvar_start += np.around(
+                soln["X-averaged negative lithium plating concentration [mol.m-3]"].entries[
+                    idx_start
+                ],
+                16,
+            )
+        return yvar_start, yvar_delta, min(n_delta_max, n_delta_max_lim)
 
     def run(self, start_voltage: float = 3.6):
         """
@@ -335,7 +351,11 @@ class pybamm_sim:
                 "li_neg_M",
             ],
         )
-        sod_df["cycle_number"] = self.n_total_cycles[1:]
+        try:
+            sod_df["cycle_number"] = self.n_total_cycles[1:]
+        except Exception as e:
+            print(e)
+            sod_df["cycle_number"] = self.n_total_cycles[1:-1]
         save_df = {
             "sim_data": sim_df,
             "steps_data": steps_df,
