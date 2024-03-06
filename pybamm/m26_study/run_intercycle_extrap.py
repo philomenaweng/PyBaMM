@@ -1,21 +1,26 @@
 import pybamm
 import argparse
+import json
 
 from pybamm.m26_study.m26_params import get_parameter_values
-from pybamm.m26_study.pybamm_sim import pybamm_sim
+from pybamm.m26_study.pybamm_sim import pybamm_sim, data_dir
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("trial_name", type=str, help="Trial name")
-    parser.add_argument("c_rate", type=str, help="C-rate")
-    parser.add_argument("toc_v", type=float, help="TOC voltage")
-    parser.add_argument("bod_v", type=float, help="BOD voltage")
     args = parser.parse_args()
 
     trial_name = args.trial_name
-    c_rate = args.c_rate
-    toc_v = args.toc_v
-    bod_v = args.bod_v
+    with open(f"{data_dir}/{trial_name}/config.json", "r") as f:
+        config = json.load(f)
+
+    config["trial_name"] = trial_name
+    c_rate = config["c_rate"]
+    toc_v = config["toc_v"]
+    bod_v = config["bod_v"]
+
+    with open(f"{data_dir}/{trial_name}/config.json", "w") as f:
+        json.dump(config, f, indent=4)
 
     exp = pybamm.Experiment(
         [
@@ -27,7 +32,7 @@ if __name__ == "__main__":
         + [
             (
                 f"Charge at {c_rate} until {toc_v} V",
-                f"Hold at {toc_v} V until C/100",
+                f"Hold at {toc_v} V until C/10",
                 "Rest for 1 hour",
                 f"Discharge at {c_rate} until {bod_v} V",
                 "Rest for 1 hour",
