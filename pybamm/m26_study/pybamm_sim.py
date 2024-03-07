@@ -167,8 +167,8 @@ class pybamm_sim:
         """
         soln = self.solution
         n_lithium = soln["Total lithium in particles [mol]"].entries[0]
-        am_neg = soln["Negative electrode active material volume fraction"].entries[0]
-        am_pos = soln["Positive electrode active material volume fraction"].entries[0]
+        am_neg = soln["Negative electrode active material volume fraction"].entries[:, 0].mean()
+        am_pos = soln["Positive electrode active material volume fraction"].entries[:, 0].mean()
         min_porosity_neg = soln["Negative electrode porosity"].entries[:, 0].min()
         sei_neg = soln["Negative total SEI thickness [m]"].entries[:, 0].mean()
         li_neg = soln["X-averaged negative lithium plating concentration [mol.m-3]"].entries[0]
@@ -208,17 +208,11 @@ class pybamm_sim:
                 1,
             ),
             "Negative outer SEI thickness [m]": (0, 1e8, "Initial outer SEI thickness [m]", 0),
-            # "X-averaged negative dead lithium concentration [mol.m-3]": (
-            #     0,
-            #     1e8,
-            #     "Initial plated lithium concentration [mol.m-3]",
-            #     0,
-            # ),
             "Negative dead lithium concentration [mol.m-3]": (
                 0,
                 1e8,
                 "Initial plated lithium concentration [mol.m-3]",
-                0,
+                1,
             ),
         }
         soln = self.solution
@@ -254,6 +248,13 @@ class pybamm_sim:
 
             else:
                 raise ValueError("variable dimension not implemented")
+
+            if var_name == "Negative electrode porosity":
+                self.parameter_values.update(
+                    {
+                        "Negative electrode minimum porosity": yvar_new.min(),
+                    }
+                )
         if n_delta <= 0:
             n_delta = 1
         smallest_var = min(extrap_vars, key=lambda x: extrap_vars[x][-1])
@@ -295,7 +296,7 @@ class pybamm_sim:
         else:
             raise ValueError("variable dimension not implemented")
 
-        yvar_delta = np.around(yvar_end - yvar_start, 16)
+        yvar_delta = np.around(yvar_end - yvar_start, 12)
         if np.all(yvar_delta > 0):
             n_delta_max = np.floor((yvar_max - yvar_start) / yvar_delta).min()
         elif np.all(yvar_delta < 0):
@@ -308,12 +309,10 @@ class pybamm_sim:
         else:
             n_delta_max_lim = 1e5
 
-        if var_name == "X-averaged negative dead lithium concentration [mol.m-3]":
+        if var_name == "Negative dead lithium concentration [mol.m-3]":
             yvar_start += np.around(
-                soln["X-averaged negative lithium plating concentration [mol.m-3]"].entries[
-                    idx_start
-                ],
-                16,
+                soln["Negative lithium plating concentration [mol.m-3]"].entries[:, idx_start],
+                12,
             )
         return yvar_start, yvar_delta, min(n_delta_max, n_delta_max_lim)
 
