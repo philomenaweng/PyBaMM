@@ -502,6 +502,18 @@ def graphite_LGM26_ocp(sto):
     #                  kind="linear", fill_value="extrapolate")(sto)
 
 
+def fraction_of_accessible_negative_AM():
+    """
+    Fraction of accessible negative electrode active material.
+    """
+    epsilon_min = pybamm.Parameter("Negative electrode minimum porosity")
+    epsilon_crit = pybamm.Parameter("Negative electrode critical porosity")
+
+    return (1 / epsilon_crit * epsilon_min) * pybamm.EqualHeaviside(
+        epsilon_min, epsilon_crit
+    ) + pybamm.EqualHeaviside(epsilon_crit, epsilon_min)
+
+
 # Call dict via a function to avoid errors when editing in place
 def get_parameter_values():
     """
@@ -516,6 +528,8 @@ def get_parameter_values():
 
     return {
         "chemistry": "lithium_ion",
+        "Negative electrode minimum porosity": 0.18,
+        "Negative electrode critical porosity": 0.15,
         # lithium plating
         "Lithium metal partial molar volume [m3.mol-1]": 1.3e-05,
         "Lithium plating kinetic rate constant [m.s-1]": 1e-09,
@@ -578,7 +592,8 @@ def get_parameter_values():
         "Negative particle diffusivity [m2.s-1]": graphite_LGM50_diffusivity_Chen2020,
         "Negative electrode OCP [V]": graphite_LGM26_ocp,
         "Negative electrode porosity": 0.25,
-        "Negative electrode active material volume fraction": 0.75,
+        "Negative electrode active material volume fraction"
+        "": 0.75 * fraction_of_accessible_negative_AM(),
         "Negative particle radius [m]": 5.86e-06,
         "Negative electrode Bruggeman coefficient (electrolyte)": 1.5,
         "Negative electrode Bruggeman coefficient (electrode)": 1.5,
