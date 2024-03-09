@@ -509,9 +509,7 @@ def fraction_of_accessible_negative_AM():
     epsilon_min = pybamm.Parameter("Negative electrode minimum porosity")
     epsilon_crit = pybamm.Parameter("Negative electrode critical porosity")
 
-    return (1 / epsilon_crit * epsilon_min) * pybamm.EqualHeaviside(
-        epsilon_min, epsilon_crit
-    ) + pybamm.EqualHeaviside(epsilon_crit, epsilon_min)
+    return pybamm.sigmoid(epsilon_crit, epsilon_min, 70)
 
 
 # Call dict via a function to avoid errors when editing in place
@@ -529,7 +527,7 @@ def get_parameter_values():
     return {
         "chemistry": "lithium_ion",
         "Negative electrode minimum porosity": 0.18,
-        "Negative electrode critical porosity": 0.15,
+        "Negative electrode critical porosity": 0.1,
         # lithium plating
         "Lithium metal partial molar volume [m3.mol-1]": 1.3e-05,
         "Lithium plating kinetic rate constant [m.s-1]": 1e-09,
