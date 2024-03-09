@@ -104,7 +104,7 @@ class Uniform1DSubMesh(SubMesh1D):
         npts = npts[spatial_var.name]
 
         edges = np.linspace(spatial_lims["min"], spatial_lims["max"], npts + 1)
-
+        edges = np.around(edges, 15)
         coord_sys = spatial_var.coord_sys
 
         super().__init__(edges, coord_sys=coord_sys, tabs=tabs)
@@ -221,7 +221,7 @@ class Exponential1DSubMesh(SubMesh1D):
                 edges = np.concatenate((x_exp_left, [(a + b) / 2], x_exp_right))
             else:
                 edges = np.concatenate((x_exp_left, x_exp_right))
-
+        edges = np.around(edges, 15)
         super().__init__(edges, coord_sys=coord_sys, tabs=tabs)
 
 
