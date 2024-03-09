@@ -44,7 +44,7 @@ class pybamm_sim:
         options,
         parameters,
         experiment,
-        var_pts={"x_n": 100, "x_s": 10, "x_p": 10, "r_n": 10, "r_p": 10},
+        var_pts={"x_n": 20, "x_s": 10, "x_p": 10, "r_n": 10, "r_p": 10},
         version="trial000",
         save=True,
     ):
@@ -71,11 +71,18 @@ class pybamm_sim:
                 pickle.dump(var_pts, f)
 
     def solve(self, start_voltage: float = 3.6):
+
+        submesh_types = self.model.default_submesh_types
+        submesh_types["negative electrode"] = pybamm.MeshGenerator(
+            pybamm.Exponential1DSubMesh, submesh_params={"side": "right"}
+        )
+
         self.sim = pybamm.Simulation(
             self.model,
             parameter_values=self.parameter_values,
             experiment=self.experiment,
             solver=pybamm.CasadiSolver(return_solution_if_failed_early=False, dt_max=0.1),
+            submesh_types=submesh_types,
             var_pts=self.var_pts,
         )
         self.parameters_list.append(self.parameter_values.copy())
