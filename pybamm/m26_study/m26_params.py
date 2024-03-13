@@ -508,8 +508,16 @@ def fraction_of_accessible_negative_AM():
     """
     epsilon_min = pybamm.Parameter("Negative electrode minimum porosity")
     epsilon_crit = pybamm.Parameter("Negative electrode critical porosity")
+    return np.tanh(epsilon_min / epsilon_crit * np.exp(1))
 
-    return pybamm.sigmoid(epsilon_crit, epsilon_min, 70)
+
+def fraction_of_accessible_surface_area():
+    """
+    Fraction of accessible surface area.
+    """
+    li_M = pybamm.Parameter("Initial X-averaged plated lithium concentration [mol.m-3]")
+    li_M_crit = pybamm.Parameter("Critical plated lithium concentration [mol.m-3]")
+    return (np.tanh((li_M_crit - li_M) / 2) + 1) / 2
 
 
 # Call dict via a function to avoid errors when editing in place
@@ -536,7 +544,9 @@ def get_parameter_values():
         "Exchange-current density for stripping [A.m-2]"
         "": stripping_exchange_current_density_OKane2020,
         "Initial plated lithium concentration [mol.m-3]": 0.0,
+        "Initial X-averaged plated lithium concentration [mol.m-3]": 0.0,
         "Typical plated lithium concentration [mol.m-3]": 1000.0,
+        "Critical plated lithium concentration [mol.m-3]": 15,
         "Lithium plating transfer coefficient": 0.65,
         "Dead lithium decay constant [s-1]": 1e-06,
         "Dead lithium decay rate [s-1]": SEI_limited_dead_lithium_OKane2022,
@@ -569,7 +579,7 @@ def get_parameter_values():
         "Separator thickness [m]": 1.2e-05,
         "Positive electrode thickness [m]": 7.56e-05,
         "Positive current collector thickness [m]": 1.6e-05,
-        "Electrode height [m]": 0.065,
+        "Electrode height [m]": 0.065 * fraction_of_accessible_surface_area(),
         "Electrode width [m]": 1.58 * 0.49,
         "Cell cooling surface area [m2]": 0.00531,
         "Cell volume [m3]": 2.42e-05,
