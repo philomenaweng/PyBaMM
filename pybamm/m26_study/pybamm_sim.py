@@ -179,16 +179,10 @@ class pybamm_sim:
         min_porosity_neg = soln["Negative electrode porosity"].entries[:, 0].min()
         sei_neg = soln["Negative total SEI thickness [m]"].entries[:, 0].mean()
         li_neg = soln["X-averaged negative lithium plating concentration [mol.m-3]"].entries[0]
+        Ax = soln["Current [A]"].entries[0] / soln["Total current density [A.m-2]"].entries[0]
 
         self.state_variables.append(
-            [
-                am_pos,
-                am_neg,
-                n_lithium,
-                min_porosity_neg,
-                sei_neg,
-                li_neg,
-            ]
+            [am_pos, am_neg, n_lithium, min_porosity_neg, sei_neg, li_neg, Ax]
         )
 
     def extrapolate_states(self, n_delta: int = 100):
@@ -215,11 +209,11 @@ class pybamm_sim:
                 1,
             ),
             "Negative outer SEI thickness [m]": (0, 1e8, "Initial outer SEI thickness [m]", 0),
-            "Negative dead lithium concentration [mol.m-3]": (
+            "X-averaged negative dead lithium concentration [mol.m-3]": (
                 0,
-                1e8,
+                20,
                 "Initial plated lithium concentration [mol.m-3]",
-                1,
+                0,
             ),
         }
         soln = self.solution
@@ -230,6 +224,12 @@ class pybamm_sim:
 
             n_delta = int(min(n_delta, n_delta_max / 2))
             extrap_vars[var_name] = (yvar_start, yvar_delta, param_name, ndim, n_delta_max)
+
+        if n_delta < 1:
+            n_delta = 1
+        smallest_var = min(extrap_vars, key=lambda x: extrap_vars[x][-1])
+        print(f"Extrapolated {n_delta} cycles. Smallest n_delta from {smallest_var}.")
+        self.n_extrapolated = n_delta
 
         for var_name, (yvar_start, yvar_delta, param_name, ndim, _) in extrap_vars.items():
             yvar_new = yvar_start + n_delta * yvar_delta
@@ -262,12 +262,15 @@ class pybamm_sim:
                         "Negative electrode minimum porosity": yvar_new.min(),
                     }
                 )
-        if n_delta <= 0:
-            n_delta = 1
-        smallest_var = min(extrap_vars, key=lambda x: extrap_vars[x][-1])
-        print(f"Extrapolated {n_delta} cycles. Smallest n_delta from {smallest_var}.")
 
-        self.n_extrapolated = n_delta
+            if var_name == "X-averaged negative dead lithium concentration [mol.m-3]":
+                self.parameter_values.update(
+                    {
+                        "Initial X-averaged plated lithium concentration [mol.m-3]":
+                        yvar_new.mean(),
+                    }
+                )
+
         return extrap_vars
 
     def _find_max_ndelta_from_state(self, var_name: str, yvar_max: np.array, yvar_min: np.array):
@@ -293,10 +296,12 @@ class pybamm_sim:
         idx_start = np.where(soln["Time [s]"].entries == time_start)[0][0]
 
         if yvar.ndim == 1:
+            yvar0 = np.around(yvar[0], 16)
             yvar_start = np.around(yvar[idx_start], 16)
             yvar_end = yvar[-1]
 
         elif yvar.ndim == 2:
+            yvar0 = np.around(yvar[:, 0], 16)
             yvar_start = np.around(yvar[:, idx_start], 16)
             yvar_end = yvar[:, -1]
 
@@ -316,12 +321,14 @@ class pybamm_sim:
         else:
             n_delta_max_lim = 1e5
 
-        if var_name == "Negative dead lithium concentration [mol.m-3]":
-            yvar_start += np.around(
-                soln["Negative lithium plating concentration [mol.m-3]"].entries[:, idx_start],
+        if (var_name == "Negative dead lithium concentration [mol.m-3]") | (
+            var_name == "X-averaged negative dead lithium concentration [mol.m-3]"
+        ):
+            yvar0 += np.around(
+                soln["Negative lithium plating concentration [mol.m-3]"].entries[:, 0],
                 12,
             )
-        return yvar_start, yvar_delta, min(n_delta_max, n_delta_max_lim)
+        return yvar0, yvar_delta, min(n_delta_max, n_delta_max_lim)
 
     def run(self, start_voltage: float = 3.6):
         """
@@ -355,6 +362,7 @@ class pybamm_sim:
                 "min_porosity_neg",
                 "sei_neg_m",
                 "li_neg_M",
+                "Ax_m2",
             ],
         )
         try:
