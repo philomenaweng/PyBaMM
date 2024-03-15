@@ -370,6 +370,14 @@ class pybamm_sim:
         except Exception as e:
             print(e)
             sod_df["cycle_number"] = self.n_total_cycles[1:-1]
+
+        sod_df["LLI_%"] = (1 - sod_df["n_lithium_mol"] / sod_df["n_lithium_mol"].iloc[0]) * 100
+        sod_df["f_Ax"] = sod_df["Ax_m2"] / sod_df["Ax_m2"].iloc[0]
+        sod_df["LAM_pe_%"] = (1 - sod_df["f_Ax"]) * 100
+        sod_df["LAM_ne_%"] = (
+            1 - sod_df["am_neg"] / sod_df["am_neg"].iloc[0] * sod_df["f_Ax"]
+        ) * 100
+
         save_df = {
             "sim_data": sim_df,
             "steps_data": steps_df,
