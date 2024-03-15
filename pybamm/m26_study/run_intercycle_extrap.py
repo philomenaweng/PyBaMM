@@ -5,12 +5,9 @@ import json
 from pybamm.m26_study.m26_params import get_parameter_values
 from pybamm.m26_study.pybamm_sim import pybamm_sim, data_dir
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("trial_name", type=str, help="Trial name")
-    args = parser.parse_args()
 
-    trial_name = args.trial_name
+def run_one_trial(trial_name, param):
+    print(f"Running trial {trial_name}")
     with open(f"{data_dir}/{trial_name}/config.json", "r") as f:
         config = json.load(f)
 
@@ -18,6 +15,7 @@ if __name__ == "__main__":
     c_rate = config["c_rate"]
     toc_v = config["toc_v"]
     bod_v = config["bod_v"]
+    max_cycles = config["max_cycles"]
 
     with open(f"{data_dir}/{trial_name}/config.json", "w") as f:
         json.dump(config, f, indent=4)
@@ -39,16 +37,6 @@ if __name__ == "__main__":
             )
         ]
         * 1
-    )
-
-    param = pybamm.ParameterValues(get_parameter_values())
-
-    param.update(
-        {
-            # "Initial outer SEI thickness [m]": 5e-9,
-            "Negative electrode porosity": 0.18,
-            # "Lithium plating kinetic rate constant [m.s-1]": 1e-9,
-        }
     )
 
     options = {
@@ -75,7 +63,7 @@ if __name__ == "__main__":
             break
     sim.save_data()
 
-    while run_flag and sim.n_total_cycles[-1] <= 9999:
+    while run_flag and sim.n_total_cycles[-1] <= max_cycles:
         try:
             sim.extrapolate_states(n_delta=500)
             sim.run(3.6)
@@ -88,3 +76,22 @@ if __name__ == "__main__":
             sim.save_data()
 
     sim.save_data()
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("trial_name", type=str, help="Trial name")
+    args = parser.parse_args()
+
+    trial_name = args.trial_name
+
+    param = pybamm.ParameterValues(get_parameter_values())
+    param.update(
+        {
+            "Negative electrode porosity": 0.18,
+            "Outer SEI solvent diffusivity [m2.s-1]": 2.5e-22,
+            "Negative particle radius [m]": 5.86e-06,
+        }
+    )
+
+    run_one_trial(trial_name, param)
