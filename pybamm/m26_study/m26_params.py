@@ -538,7 +538,7 @@ def get_parameter_values():
         "Negative electrode critical porosity": 0.1,
         # lithium plating
         "Lithium metal partial molar volume [m3.mol-1]": 1.3e-05,
-        "Lithium plating kinetic rate constant [m.s-1]": 1e-09,
+        "Lithium plating kinetic rate constant [m.s-1]": 1e-09 * 1e-3,
         "Exchange-current density for plating [A.m-2]"
         "": plating_exchange_current_density_OKane2020,
         "Exchange-current density for stripping [A.m-2]"
@@ -557,7 +557,7 @@ def get_parameter_values():
         "Outer SEI partial molar volume [m3.mol-1]": 9.585e-05,
         "SEI reaction exchange current density [A.m-2]": 1.5e-07,
         "SEI resistivity [Ohm.m]": 200000.0,
-        "Outer SEI solvent diffusivity [m2.s-1]": 2.5e-22,
+        "Outer SEI solvent diffusivity [m2.s-1]": 2.5e-22 * 10,
         "Bulk solvent concentration [mol.m-3]": 2636.0,
         "Inner SEI open-circuit potential [V]": 0.1,
         "Outer SEI open-circuit potential [V]": 0.8,
@@ -599,10 +599,10 @@ def get_parameter_values():
         "Maximum concentration in negative electrode [mol.m-3]": 33133.0,
         "Negative particle diffusivity [m2.s-1]": graphite_LGM50_diffusivity_Chen2020,
         "Negative electrode OCP [V]": graphite_LGM26_ocp,
-        "Negative electrode porosity": 0.25,
+        "Negative electrode porosity": 0.25 / 0.25 * 0.18,
         "Negative electrode active material volume fraction"
         "": 0.75 * fraction_of_accessible_negative_AM(),
-        "Negative particle radius [m]": 5.86e-06,
+        "Negative particle radius [m]": 5.86e-06 * 0.5,
         "Negative electrode Bruggeman coefficient (electrolyte)": 1.5,
         "Negative electrode Bruggeman coefficient (electrode)": 1.5,
         "Negative electrode charge transfer coefficient": 0.5,
