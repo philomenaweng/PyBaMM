@@ -534,8 +534,8 @@ def get_parameter_values():
 
     return {
         "chemistry": "lithium_ion",
-        "Negative electrode minimum porosity": 0.18,
-        "Negative electrode critical porosity": 0.1,
+        "Negative electrode minimum porosity": 0.22,
+        "Negative electrode critical porosity": 0.15,
         # lithium plating
         "Lithium metal partial molar volume [m3.mol-1]": 1.3e-05,
         "Lithium plating kinetic rate constant [m.s-1]": 1e-09 * 1e-3,
@@ -599,7 +599,7 @@ def get_parameter_values():
         "Maximum concentration in negative electrode [mol.m-3]": 33133.0,
         "Negative particle diffusivity [m2.s-1]": graphite_LGM50_diffusivity_Chen2020,
         "Negative electrode OCP [V]": graphite_LGM26_ocp,
-        "Negative electrode porosity": 0.25 / 0.25 * 0.18,
+        "Negative electrode porosity": 0.25 / 0.25 * 0.22,
         "Negative electrode active material volume fraction"
         "": 0.75 * fraction_of_accessible_negative_AM(),
         "Negative particle radius [m]": 5.86e-06 * 0.5,
