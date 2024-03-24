@@ -535,7 +535,7 @@ def get_parameter_values():
     return {
         "chemistry": "lithium_ion",
         "Negative electrode minimum porosity": 0.22,
-        "Negative electrode critical porosity": 0.15,
+        "Negative electrode critical porosity": 0.1,
         # lithium plating
         "Lithium metal partial molar volume [m3.mol-1]": 1.3e-05,
         "Lithium plating kinetic rate constant [m.s-1]": 1e-09 * 1e-3,
@@ -555,7 +555,7 @@ def get_parameter_values():
         "Inner SEI reaction proportion": 0.0,
         "Inner SEI partial molar volume [m3.mol-1]": 9.585e-05,
         "Outer SEI partial molar volume [m3.mol-1]": 9.585e-05,
-        "SEI reaction exchange current density [A.m-2]": 1.5e-07,
+        "SEI reaction exchange current density [A.m-2]": 1.5e-07 * 0.15,
         "SEI resistivity [Ohm.m]": 200000.0,
         "Outer SEI solvent diffusivity [m2.s-1]": 2.5e-22 * 10,
         "Bulk solvent concentration [mol.m-3]": 2636.0,
@@ -568,7 +568,6 @@ def get_parameter_values():
         "Initial outer SEI thickness [m]": 5e-09,
         "EC initial concentration in electrolyte [mol.m-3]": 4541.0,
         "EC diffusivity [m2.s-1]": 2e-18 * 1e2,
-        "SEI kinetic rate constant [m.s-1]": 1e-12,
         "SEI open-circuit potential [V]": 0.4,
         "SEI growth activation energy [J.mol-1]": 38000.0,
         # "Negative electrode reaction-driven LAM factor [m3.mol-1]": 0.0,
