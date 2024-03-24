@@ -15,7 +15,8 @@ def run_one_trial(trial_name, param):
     c_rate = config["c_rate"]
     toc_v = config["toc_v"]
     bod_v = config["bod_v"]
-    max_cycles = config["max_cycles"]
+    n_delta_dict = config["n_delta_dict"]
+    options = config["options"]
 
     with open(f"{data_dir}/{trial_name}/config.json", "w") as f:
         json.dump(config, f, indent=4)
@@ -39,41 +40,20 @@ def run_one_trial(trial_name, param):
         * 1
     )
 
-    options = {
-        "SEI": "solvent-diffusion limited",
-        "SEI porosity change": "true",
-        "lithium plating": "irreversible",
-        "lithium plating porosity change": "true",
-        # "particle mechanics": ("swelling and cracking", "swelling only"),
-        # "SEI on cracks": "true",
-        # "loss of active material": "stress-driven",
-        # "calculate discharge energy": "true",  # for compatibility with older PyBaMM versions
-    }
-
     sim = pybamm_sim(options, param, exp, version=trial_name)
     sim.run(3.6)
     run_flag = True
-    for i in range(10):
-        try:
-            sim.extrapolate_states(n_delta=5)
-            sim.run(3.6)
-        except Exception as e:
-            print(e)
-            run_flag = False
-            break
-    sim.save_data()
 
-    while run_flag and sim.n_total_cycles[-1] <= max_cycles:
-        try:
-            sim.extrapolate_states(n_delta=500)
-            sim.run(3.6)
-        except Exception as e:
-            print(e)
-            run_flag = False
-            break
-
-        if len(sim.n_total_cycles) % 10 == 0:
-            sim.save_data()
+    for i, k in n_delta_dict.items():
+        while run_flag and sim.n_total_cycles[-1] <= int(i):
+            try:
+                sim.extrapolate_states(n_delta=int(k))
+                sim.run(3.6)
+            except Exception as e:
+                print(e)
+                run_flag = False
+            if len(sim.n_total_cycles) % 10 == 0:
+                sim.save_data()
 
     sim.save_data()
 
@@ -86,12 +66,5 @@ if __name__ == "__main__":
     trial_name = args.trial_name
 
     param = pybamm.ParameterValues(get_parameter_values())
-    param.update(
-        {
-            "Negative electrode porosity": 0.18,
-            "Outer SEI solvent diffusivity [m2.s-1]": 2.5e-22,
-            "Negative particle radius [m]": 5.86e-06,
-        }
-    )
 
     run_one_trial(trial_name, param)
