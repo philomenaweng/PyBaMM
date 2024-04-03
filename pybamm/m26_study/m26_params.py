@@ -508,7 +508,8 @@ def fraction_of_accessible_negative_AM():
     """
     epsilon_min = pybamm.Parameter("Negative electrode minimum porosity")
     epsilon_crit = pybamm.Parameter("Negative electrode critical porosity")
-    return np.tanh(epsilon_min / epsilon_crit * np.exp(1))
+    f_min = pybamm.Parameter("Negative electrode minimum fraction")
+    return np.tanh(epsilon_min / epsilon_crit * np.exp(1)) * (1 - f_min) + f_min
 
 
 def fraction_of_accessible_surface_area():
@@ -517,7 +518,8 @@ def fraction_of_accessible_surface_area():
     """
     li_M = pybamm.Parameter("Initial X-averaged plated lithium concentration [mol.m-3]")
     li_M_crit = pybamm.Parameter("Critical plated lithium concentration [mol.m-3]")
-    return (np.tanh((li_M_crit - li_M) / 2) + 1) / 2
+    f_min = pybamm.Parameter("Ax minimum fraction")
+    return (np.tanh((li_M_crit - li_M) / 2) + 1) / 2 * (1 - f_min) + f_min
 
 
 # Call dict via a function to avoid errors when editing in place
@@ -534,8 +536,9 @@ def get_parameter_values():
 
     return {
         "chemistry": "lithium_ion",
-        "Negative electrode minimum porosity": 0.22,
         "Negative electrode critical porosity": 0.1,
+        "Negative electrode minimum fraction": 0,
+        "Ax minimum fraction": 0,
         # lithium plating
         "Lithium metal partial molar volume [m3.mol-1]": 1.3e-05,
         "Lithium plating kinetic rate constant [m.s-1]": 1e-09 * 1e-3,
@@ -567,7 +570,8 @@ def get_parameter_values():
         "Initial inner SEI thickness [m]": 0.0,
         "Initial outer SEI thickness [m]": 5e-09,
         "EC initial concentration in electrolyte [mol.m-3]": 4541.0,
-        "EC diffusivity [m2.s-1]": 2e-18 * 1e2,
+        "EC diffusivity [m2.s-1]": 2.5e-22 * 100,
+        "SEI kinetic rate constant [m.s-1]": 7.5e-17,
         "SEI open-circuit potential [V]": 0.4,
         "SEI growth activation energy [J.mol-1]": 38000.0,
         # "Negative electrode reaction-driven LAM factor [m3.mol-1]": 0.0,
@@ -598,7 +602,8 @@ def get_parameter_values():
         "Maximum concentration in negative electrode [mol.m-3]": 33133.0,
         "Negative particle diffusivity [m2.s-1]": graphite_LGM50_diffusivity_Chen2020,
         "Negative electrode OCP [V]": graphite_LGM26_ocp,
-        "Negative electrode porosity": 0.25 / 0.25 * 0.22,
+        "Negative electrode porosity": 0.25,
+        "Negative electrode minimum porosity": 0.25,
         "Negative electrode active material volume fraction"
         "": 0.75 * fraction_of_accessible_negative_AM(),
         "Negative particle radius [m]": 5.86e-06 * 0.5,
