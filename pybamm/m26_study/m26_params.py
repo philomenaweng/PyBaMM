@@ -5,7 +5,7 @@ from scipy.interpolate import interp1d
 
 
 half_cell_path = "/local/data/philomenaweng/repos/bi-sox/resources/sod/"
-half_cell_names = ("M26_2006_half_cell_pe_Co48_ch", "M26_2001_half_cell_ne_Co48_dch")
+half_cell_names = ("M26_2006_half_cell_pe_Co48_ch_mod1", "M26_2001_half_cell_ne_Co48_dch")
 pe_fname = f"{half_cell_path}{half_cell_names[0]}.pkl"
 ne_fname = f"{half_cell_path}{half_cell_names[1]}.pkl"
 with open(pe_fname, "rb") as f:
@@ -14,10 +14,10 @@ with open(ne_fname, "rb") as f:
     ne_list = pickle.load(f)
 
 half_cell_ocvs = {
-    "pe_soc": pe_list[-1][:2104],
-    "pe_ocv": pe_list[0][:2104],
-    "ne_soc": ne_list[-1][:2419],
-    "ne_ocv": ne_list[0][:2419],
+    "pe_soc": pe_list[-1],
+    "pe_ocv": pe_list[0],
+    "ne_soc": ne_list[-1],
+    "ne_ocv": ne_list[0],
 }
 
 
