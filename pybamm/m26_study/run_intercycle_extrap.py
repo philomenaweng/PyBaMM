@@ -66,5 +66,15 @@ if __name__ == "__main__":
     trial_name = args.trial_name
 
     param = pybamm.ParameterValues(get_parameter_values())
+    param.update(
+        {
+            # "Negative electrode critical porosity": 0.15,
+            # "Negative electrode minimum fraction": 0.5,
+            # "Electrode height [m]": 0.065,
+            # "Electrode width [m]": 1.58 * 0.49,
+            # "EC diffusivity [m2.s-1]": 2.5e-21,
+            # "SEI kinetic rate constant [m.s-1]": 5e-17,
+        }
+    )
 
     run_one_trial(trial_name, param)

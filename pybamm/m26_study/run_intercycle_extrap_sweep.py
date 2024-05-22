@@ -39,24 +39,40 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     config_fname = args.config_fname
-
+    trial_v = "016"
+    dod_case = 80
     param_dict = {
         "trial_name": [
-            "trial013_80%dod_nofAx_kSEIx0p15",
-            # "trial013_100%dod_nofAx_kSEIx0p2",
-            # "trial013_100%dod_nofAx_kSEIx0p25",
-            # "trial013_100%dod_nofAx_kSEIx0p3",
+            f"trial{trial_v}_{dod_case}%dod_Axmin0p5_LiMcrit40",
+            f"trial{trial_v}_{dod_case}%dod_Axmin0p5_LiMcrit50",
+            f"trial{trial_v}_{dod_case}%dod_Axmin0p5_LiMcrit60",
         ],
-        # "Negative electrode porosity": [0.18, 0.185, 0.19, 0.195],
-        # "Negative electrode critical porosity": [0.1, 0.15, 0.2, 0.25],
-        # "SEI kinetic rate constant [m.s-1]": [1e-12 * 1, 1e-12 * 0.5, 1e-12 * 0.1, 1e-12 * 0.05],
-        "SEI reaction exchange current density [A.m-2]": [
-            1.5e-07 * 0.15,
-            # 1.5e-07 * 0.2,
-            # 1.5e-07 * 0.25,
-            # 1.5e-07 * 0.3,
-        ],
-        "Electrode height [m]": [0.065],  # , 0.065, 0.065, 0.065],
-        "Electrode width [m]": [1.58 * 0.49],  # , 1.58 * 0.49, 1.58 * 0.49, 1.58 * 0.49],
+        # "Negative electrode porosity": [0.3, 0.35],
+        # "Negative electrode critical porosity": [0.15, 0.15, 0.15],
+        # "Negative electrode minimum fraction": [0.5, 0.5, 0.5],
+        "Ax minimum fraction": [0.5, 0.5, 0.5],
+        "Critical plated lithium concentration [mol.m-3]": [40, 50, 60],
+        # "SEI reaction exchange current density [A.m-2]": [1.5e-07 for i in range(3)],
+        # "Outer SEI solvent diffusivity [m2.s-1]": [
+        #     2.5e-22 * 10,
+        #     2.5e-22 * 10 * 0.5,
+        #     2.5e-22 * 10 * 0.1,
+        # ],
+        # "SEI kinetic rate constant [m.s-1]": [
+        #     7.5e-17 * 0.8,
+        #     7.5e-17 * 0.6,
+        #     7.5e-17 * 0.4,
+        # ],
+        # "SEI open-circuit potential [V]": [0.39, 0.38, 0.37],
+        # "Lithium plating kinetic rate constant [m.s-1]": [1e-12 * 0.1, 1e-12 * 0.01],
     }
+
+    # n_trials = len(param_dict["trial_name"])
+    # param_dict.update(
+    #     {
+    #         "Electrode height [m]": [0.065 for _ in range(n_trials)],
+    #         "Electrode width [m]": [1.58 * 0.49 for _ in range(n_trials)],
+    #         "Negative electrode active material volume fraction": [0.75 for _ in range(n_trials)],
+    #     }
+    # )
     run_parametric_sweep(param_dict, config_fname)
