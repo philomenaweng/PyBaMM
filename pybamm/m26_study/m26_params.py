@@ -4,20 +4,34 @@ import pickle
 from scipy.interpolate import interp1d
 
 
-half_cell_path = "/local/data/philomenaweng/repos/bi-sox/resources/sod/"
+half_cell_path = "/local/data/philomenaweng/repos/bi-sox/resources/sod"
 half_cell_names = ("M26_2006_half_cell_pe_Co48_ch_mod1", "M26_2001_half_cell_ne_Co48_dch")
-pe_fname = f"{half_cell_path}{half_cell_names[0]}.pkl"
-ne_fname = f"{half_cell_path}{half_cell_names[1]}.pkl"
+pe_fname = f"{half_cell_path}/{half_cell_names[0]}.pkl"
+ne_fname = f"{half_cell_path}/{half_cell_names[1]}.pkl"
+half_cell_names_dch = ("M26_2006_half_cell_pe_Co48_dch_mod1", "M26_2001_half_cell_ne_Co48_ch_v2")
+pe_fname_dch = f"{half_cell_path}/{half_cell_names_dch[0]}.pkl"
+ne_fname_dch = f"{half_cell_path}/{half_cell_names_dch[1]}.pkl"
 with open(pe_fname, "rb") as f:
     pe_list = pickle.load(f)
 with open(ne_fname, "rb") as f:
     ne_list = pickle.load(f)
+with open(pe_fname_dch, "rb") as f:
+    pe_list_dch = pickle.load(f)
+with open(ne_fname_dch, "rb") as f:
+    ne_list_dch = pickle.load(f)
 
 half_cell_ocvs = {
     "pe_soc": pe_list[-1],
     "pe_ocv": pe_list[0],
     "ne_soc": ne_list[-1],
     "ne_ocv": ne_list[0],
+}
+
+half_cell_ocvs_dch = {
+    "pe_soc": pe_list_dch[-1],
+    "pe_ocv": pe_list_dch[0],
+    "ne_soc": ne_list_dch[-1],
+    "ne_ocv": ne_list_dch[0],
 }
 
 
@@ -296,7 +310,7 @@ def nmc_LGM50_diffusivity_Chen2020(sto, T):
     return D_ref * arrhenius
 
 
-def nmc_LGM26_ocp(sto):
+def nmc_LGM26_ocp_delithiation(sto):
     """
     LG M50 NMC open-circuit potential as a function of stochiometry.
 
@@ -318,6 +332,34 @@ def nmc_LGM26_ocp(sto):
         fill_value="extrapolate",
     )(1 - sto_arr)
     return pybamm.Interpolant(sto_arr, ocp_arr, sto)
+
+
+def nmc_LGM26_ocp_lithiation(sto):
+    """
+    LG M50 NMC open-circuit potential as a function of stochiometry during lithitation.
+
+    Parameters
+    ----------
+    sto: :class:`pybamm.Symbol`
+        Electrode stochiometry
+
+    Returns
+    -------
+    :class:`pybamm.Symbol`
+        Open-circuit potential
+    """
+    sto_arr = np.arange(0, 1.1, 0.005)
+    ocp_arr = interp1d(
+        half_cell_ocvs_dch["pe_soc"],
+        half_cell_ocvs_dch["pe_ocv"],
+        kind="linear",
+        fill_value="extrapolate",
+    )(1 - sto_arr)
+    return pybamm.Interpolant(sto_arr, ocp_arr, sto)
+
+
+def nmc_LGM26_ocp_average(sto):
+    return (nmc_LGM26_ocp_lithiation(sto) + nmc_LGM26_ocp_delithiation(sto)) / 2
 
 
 def nmc_LGM50_electrolyte_exchange_current_density_Chen2020(c_e, c_s_surf, c_s_max, T):
@@ -489,7 +531,7 @@ def electrolyte_conductivity_Nyman2008_arrhenius(c_e, T):
     return sigma_e * arrhenius
 
 
-def graphite_LGM26_ocp(sto):
+def graphite_LGM26_ocp_lithiation(sto):
     sto_arr = np.arange(0, 1.1, 0.005)
     ocp_arr = interp1d(
         half_cell_ocvs["ne_soc"],
@@ -500,6 +542,23 @@ def graphite_LGM26_ocp(sto):
     return pybamm.Interpolant(sto_arr, ocp_arr, sto)
     # return interp1d(half_cell_ocvs["ne_soc"], half_cell_ocvs["ne_ocv"],
     #                  kind="linear", fill_value="extrapolate")(sto)
+
+
+def graphite_LGM26_ocp_delithiation(sto):
+    sto_arr = np.arange(0, 1.1, 0.005)
+    ocp_arr = interp1d(
+        half_cell_ocvs_dch["ne_soc"],
+        half_cell_ocvs_dch["ne_ocv"],
+        kind="linear",
+        fill_value="extrapolate",
+    )(sto_arr)
+    return pybamm.Interpolant(sto_arr, ocp_arr, sto)
+    # return interp1d(half_cell_ocvs_dch["ne_soc"], half_cell_ocvs_dch["ne_ocv"],
+    #                  kind="linear", fill_value="extrapolate")(sto)
+
+
+def graphite_LGM26_ocp_average(sto):
+    return (graphite_LGM26_ocp_lithiation(sto) + graphite_LGM26_ocp_delithiation(sto)) / 2
 
 
 def fraction_of_accessible_negative_AM():
@@ -601,7 +660,9 @@ def get_parameter_values():
         "Negative electrode conductivity [S.m-1]": 215.0,
         "Maximum concentration in negative electrode [mol.m-3]": 33133.0,
         "Negative particle diffusivity [m2.s-1]": graphite_LGM50_diffusivity_Chen2020,
-        "Negative electrode OCP [V]": graphite_LGM26_ocp,
+        "Negative electrode OCP [V]": graphite_LGM26_ocp_average,
+        "Negative electrode lithiation OCP [V]": graphite_LGM26_ocp_lithiation,
+        "Negative electrode delithiation OCP [V]": graphite_LGM26_ocp_delithiation,
         "Negative electrode porosity": 0.25,
         "Negative electrode minimum porosity": 0.25,
         "Negative electrode active material volume fraction"
@@ -635,7 +696,9 @@ def get_parameter_values():
         "Positive electrode conductivity [S.m-1]": 0.18,
         "Maximum concentration in positive electrode [mol.m-3]": 63104.0 * 0.8,
         "Positive particle diffusivity [m2.s-1]": nmc_LGM50_diffusivity_Chen2020,
-        "Positive electrode OCP [V]": nmc_LGM26_ocp,
+        "Positive electrode OCP [V]": nmc_LGM26_ocp_average,
+        "Positive electrode lithiation OCP [V]": nmc_LGM26_ocp_lithiation,
+        "Positive electrode delithiation OCP [V]": nmc_LGM26_ocp_delithiation,
         "Positive electrode porosity": 0.335,
         "Positive electrode active material volume fraction": 0.665,
         "Positive particle radius [m]": 5.22e-06,
