@@ -148,7 +148,9 @@ def graphite_LGM50_diffusivity_Chen2020(sto, T):
     return D_ref * arrhenius
 
 
-def graphite_LGM50_electrolyte_exchange_current_density_Chen2020(c_e, c_s_surf, c_s_max, T):
+def graphite_LGM50_electrolyte_exchange_current_density_Chen2020(
+    c_e, c_s_surf, c_s_max, T
+):
     """
     Exchange-current density for Butler-Volmer reactions between graphite and LiPF6 in
     EC:DMC.
@@ -181,7 +183,9 @@ def graphite_LGM50_electrolyte_exchange_current_density_Chen2020(c_e, c_s_surf, 
     E_r = 35000
     arrhenius = np.exp(E_r / pybamm.constants.R * (1 / 298.15 - 1 / T))
 
-    return m_ref * arrhenius * c_e**0.5 * c_s_surf**0.5 * (c_s_max - c_s_surf) ** 0.5
+    return (
+        m_ref * arrhenius * c_e ** 0.5 * c_s_surf ** 0.5 * (c_s_max - c_s_surf) ** 0.5
+    )
 
 
 def graphite_volume_change_Ai2020(sto, c_s_max):
@@ -219,14 +223,14 @@ def graphite_volume_change_Ai2020(sto, c_s_max):
     p9 = 0.386
     p10 = -4.966e-05
     t_change = (
-        p1 * sto**9
-        + p2 * sto**8
-        + p3 * sto**7
-        + p4 * sto**6
-        + p5 * sto**5
-        + p6 * sto**4
-        + p7 * sto**3
-        + p8 * sto**2
+        p1 * sto ** 9
+        + p2 * sto ** 8
+        + p3 * sto ** 7
+        + p4 * sto ** 6
+        + p5 * sto ** 5
+        + p6 * sto ** 4
+        + p7 * sto ** 3
+        + p8 * sto ** 2
         + p9 * sto
         + p10
     )
@@ -350,7 +354,9 @@ def nmc_LGM50_electrolyte_exchange_current_density_Chen2020(c_e, c_s_surf, c_s_m
     E_r = 17800
     arrhenius = np.exp(E_r / pybamm.constants.R * (1 / 298.15 - 1 / T))
 
-    return m_ref * arrhenius * c_e**0.5 * c_s_surf**0.5 * (c_s_max - c_s_surf) ** 0.5
+    return (
+        m_ref * arrhenius * c_e ** 0.5 * c_s_surf ** 0.5 * (c_s_max - c_s_surf) ** 0.5
+    )
 
 
 def volume_change_Ai2020(sto, c_s_max):
@@ -478,7 +484,9 @@ def electrolyte_conductivity_Nyman2008_arrhenius(c_e, T):
         Solid diffusivity
     """
 
-    sigma_e = 0.1297 * (c_e / 1000) ** 3 - 2.51 * (c_e / 1000) ** 1.5 + 3.329 * (c_e / 1000)
+    sigma_e = (
+        0.1297 * (c_e / 1000) ** 3 - 2.51 * (c_e / 1000) ** 1.5 + 3.329 * (c_e / 1000)
+    )
 
     # Nyman et al. (2008) does not provide temperature dependence
     # So use temperature dependence from Ecker et al. (2015) instead
@@ -582,7 +590,9 @@ def get_parameter_values():
         "Separator thickness [m]": 12e-06,
         "Positive electrode thickness [m]": 80e-06,
         "Positive current collector thickness [m]": 10e-06,
-        "Electrode height [m]": 62 * 0.258 * np.sqrt(fraction_of_accessible_surface_area()),
+        "Electrode height [m]": 62
+        * 0.258
+        * np.sqrt(fraction_of_accessible_surface_area()),
         "Electrode width [m]": 0.089 * np.sqrt(fraction_of_accessible_surface_area()),
         "Cell cooling surface area [m2]": 0.1 * 0.3,
         "Cell volume [m3]": 0.1 * 0.3 * 0.0145,
@@ -619,7 +629,8 @@ def get_parameter_values():
         "Negative electrode OCP entropic change [V.K-1]": 0.0,
         "Negative electrode Poisson's ratio": 0.3,
         "Negative electrode Young's modulus [Pa]": 15000000000.0,
-        "Negative electrode reference concentration for free of deformation [mol.m-3]" "": 0.0,
+        "Negative electrode reference concentration for free of deformation [mol.m-3]"
+        "": 0.0,
         "Negative electrode partial molar volume [m3.mol-1]": 3.1e-06,
         "Negative electrode volume change": graphite_volume_change_Ai2020,
         "Negative electrode initial crack length [m]": 2e-08,
@@ -651,7 +662,8 @@ def get_parameter_values():
         "Positive electrode OCP entropic change [V.K-1]": 0.0,
         "Positive electrode Poisson's ratio": 0.2,
         "Positive electrode Young's modulus [Pa]": 375000000000.0,
-        "Positive electrode reference concentration for free of deformation [mol.m-3]" "": 0.0,
+        "Positive electrode reference concentration for free of deformation [mol.m-3]"
+        "": 0.0,
         "Positive electrode partial molar volume [m3.mol-1]": 1.25e-05,
         "Positive electrode volume change": volume_change_Ai2020,
         "Positive electrode initial crack length [m]": 2e-08,
@@ -673,8 +685,10 @@ def get_parameter_values():
         "Initial concentration in electrolyte [mol.m-3]": 1000.0,
         "Cation transference number": 0.2594,
         "Thermodynamic factor": 1.0,
-        "Electrolyte diffusivity [m2.s-1]" "": electrolyte_diffusivity_Nyman2008_arrhenius,
-        "Electrolyte conductivity [S.m-1]" "": electrolyte_conductivity_Nyman2008_arrhenius,
+        "Electrolyte diffusivity [m2.s-1]"
+        "": electrolyte_diffusivity_Nyman2008_arrhenius,
+        "Electrolyte conductivity [S.m-1]"
+        "": electrolyte_conductivity_Nyman2008_arrhenius,
         # experiment
         "Reference temperature [K]": 298.15,
         "Total heat transfer coefficient [W.m-2.K-1]": 10.0,
@@ -687,7 +701,9 @@ def get_parameter_values():
         "Open-circuit voltage at 100% SOC [V]": 4.2,
         "Initial temperature [K]": 298.15,
         "Initial concentration in negative electrode [mol.m-3]": 33133.0 * 0,
-        "Initial concentration in positive electrode [mol.m-3]": (63104.0 * 0.8 * (1 - 0.15)),
+        "Initial concentration in positive electrode [mol.m-3]": (
+            63104.0 * 0.8 * (1 - 0.15)
+        ),
         "Current function [A]": 2.6,
         # citations
         "citations": ["OKane2022", "OKane2020", "Chen2020"],
