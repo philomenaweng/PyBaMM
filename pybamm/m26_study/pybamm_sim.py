@@ -521,7 +521,7 @@ class pybamm_sim:
                 voltage_loss_all = rmse(
                     results_df["voltage_real"], results_df["voltage_sim"]
                 )
-                voltage_loss = voltage_loss_dch * 4 + voltage_loss_all
+                voltage_loss = voltage_loss_dch * 9 + voltage_loss_all
                 print(f"{x} -> {voltage_loss}")
                 return voltage_loss
             except Exception as e:
@@ -553,6 +553,10 @@ class pybamm_sim:
                     on="time",
                     suffixes=("_sim", "_real"),
                 )
+
+            results_df["step_type"] = results_df["current_real"].apply(
+                lambda x: "charge" if x < 0 else "discharge" if x > 0 else "rest"
+            )
             results_df.replace(np.nan, 0, inplace=True)
             return results_df
 
@@ -568,6 +572,6 @@ class pybamm_sim:
             options={"xatol": 0.01, "fatol": 1e-4},
         )
 
-        opt_sim_df = run_sim(opt_results.x, params_range.keys(), start_voltage, params0)
+        opt_sim_df = run_sim(opt_results.x, params_range, start_voltage, params0)
 
         return opt_sim_df, opt_results
