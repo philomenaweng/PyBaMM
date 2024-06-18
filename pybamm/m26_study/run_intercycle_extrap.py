@@ -22,12 +22,7 @@ def run_one_trial(trial_name, param):
         json.dump(config, f, indent=4)
 
     exp = pybamm.Experiment(
-        [
-            (
-                f"Discharge at {c_rate} until {bod_v} V",
-                "Rest for 1 hour",
-            )
-        ]
+        [(f"Discharge at {c_rate} until {bod_v} V", "Rest for 1 hour",)]
         + [
             (
                 f"Charge at {c_rate} until {toc_v} V",

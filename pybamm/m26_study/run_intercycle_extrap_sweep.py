@@ -21,7 +21,9 @@ def run_parametric_sweep(param_dict, config_fname):
 
     for trial_name in trial_names:
         os.makedirs(f"{data_dir}/{trial_name}", exist_ok=True)
-        shutil.copyfile(f"{data_dir}/{config_fname}", f"{data_dir}/{trial_name}/config.json")
+        shutil.copyfile(
+            f"{data_dir}/{config_fname}", f"{data_dir}/{trial_name}/config.json"
+        )
 
     param_list = [copy.deepcopy(param) for _ in range(len(trial_names))]
 
