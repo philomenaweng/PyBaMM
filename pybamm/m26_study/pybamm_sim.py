@@ -505,11 +505,7 @@ class pybamm_sim:
                 ["Bayesian", "Powell", "Nelder-Mead"].
 
         """
-        current_interp = pybamm.Interpolant(
-            opt_input_dict["time"], opt_input_dict["current"], pybamm.t,
-        )
-        params0 = self.parameter_values.copy()
-        params0.update({"Current function [A]": current_interp})
+        params0 = self.update_parameters_with_current_function(opt_input_dict)
 
         def loss_func(x, param_names, sim_v0, sim_params):
             try:
@@ -522,7 +518,7 @@ class pybamm_sim:
                     results_df["voltage_real"], results_df["voltage_sim"]
                 )
                 voltage_loss = voltage_loss_dch * 9 + voltage_loss_all
-                print(f"{x} -> {voltage_loss}")
+                # print(f"{x} -> {voltage_loss}")
                 return voltage_loss
             except Exception as e:
                 print(e)
@@ -575,3 +571,13 @@ class pybamm_sim:
         opt_sim_df = run_sim(opt_results.x, params_range, start_voltage, params0)
 
         return opt_sim_df, opt_results
+
+    def update_parameters_with_current_function(self, opt_input_dict, params0=None):
+        current_interp = pybamm.Interpolant(
+            opt_input_dict["time"], opt_input_dict["current"], pybamm.t,
+        )
+        if params0 is None:
+            params0 = self.parameter_values.copy()
+        params0.update({"Current function [A]": current_interp})
+        self.parameter_values = params0.copy()
+        return params0

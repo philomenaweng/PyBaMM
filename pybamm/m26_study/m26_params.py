@@ -657,10 +657,9 @@ def get_parameter_values():
         "Separator thickness [m]": 1.2e-05,
         "Positive electrode thickness [m]": 7.56e-05,
         "Positive current collector thickness [m]": 1.6e-05,
-        "Electrode height [m]": 0.065 * np.sqrt(fraction_of_accessible_surface_area()),
-        "Electrode width [m]": 1.58
-        * 0.49
-        * np.sqrt(fraction_of_accessible_surface_area()),
+        "Electrode height [m]": 0.065, # * np.sqrt(fraction_of_accessible_surface_area()),
+        "Electrode width [m]": 1.58 * 0.49,
+        # * np.sqrt(fraction_of_accessible_surface_area()),
         "Cell cooling surface area [m2]": 0.00531,
         "Cell volume [m3]": 2.42e-05,
         "Cell thermal expansion coefficient [m.K-1]": 1.1e-06,
@@ -684,7 +683,7 @@ def get_parameter_values():
         "Negative electrode porosity": 0.25,
         "Negative electrode minimum porosity": 0.25,
         "Negative electrode active material volume fraction"
-        "": 0.75 * fraction_of_accessible_negative_AM(),
+        "": 0.75, # * fraction_of_accessible_negative_AM(),
         "Negative particle radius [m]": 5.86e-06 * 0.5,
         "Negative electrode Bruggeman coefficient (electrolyte)": 1.5,
         "Negative electrode Bruggeman coefficient (electrode)": 1.5,

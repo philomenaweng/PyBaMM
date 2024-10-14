@@ -6,6 +6,7 @@ from glob import glob
 from functools import reduce
 from datetime import datetime
 import time
+from typing import Dict, Optional, Tuple
 import pandas as pd
 import numpy as np
 from plotly.subplots import make_subplots
@@ -99,7 +100,11 @@ def find_slope(x_arr, y_arr):
     return popt[0]
 
 
-def filter_out_slow_charge(tmp_df, shift_dqdv_v=False):
+def filter_out_slow_charge(tmp_df: pd.DataFrame,
+                           shift_dqdv_v: bool=False,
+                           upper_v: Optional[float] = np.nan,
+                           lower_v: Optional[float] = np.nan,
+                           ):
     assert tmp_df["nodeID"].nunique() == 1
 
     steps_df_start = (
@@ -123,6 +128,11 @@ def filter_out_slow_charge(tmp_df, shift_dqdv_v=False):
         & (steps_df["voltage_end"] > 4)
     ]
     chg_fit_df = tmp_df[tmp_df["step_number"].isin(set(slow_chg_steps["step_number"]))]
+    if not np.isnan(upper_v):
+        chg_fit_df = chg_fit_df[chg_fit_df["voltage"] <= upper_v].copy()
+    if not np.isnan(lower_v):
+        chg_fit_df = chg_fit_df[chg_fit_df["voltage"] >= lower_v].copy()
+
     if shift_dqdv_v:
         rac_df = steps_df[
             steps_df["step_number"] == chg_fit_df["step_number"].max() + 1
@@ -217,6 +227,29 @@ def find_dqdv(df_v, df_q, dv=0.005, dq=0.03, del_dqdv_v=0):
     return {"dqdv_q": (q_arr, dqdv_q_arr), "dqdv_v": (v_arr, dqdv_v_arr)}
 
 
+def extract_peic(
+    real_data: Tuple[Dict[str, np.ndarray], pd.DataFrame],
+    pe_ocv_low: float = 3.95,
+    pe_ocv_high: float = 4.0,
+    v_shifted: bool = False,
+) -> float:
+    real_dict, rest_data_df = real_data
+
+    if v_shifted == True:
+        delV = 0
+    else:
+        rev = rest_data_df[rest_data_df["prev_state"] == "charge"]["voltage"].values[0]
+        delV = real_dict["fc_v_arr"].max() - rev
+
+    dqdv_filt = np.where(
+        (real_dict["dqdv_v"][0] >= (pe_ocv_low + delV))
+        & (real_dict["dqdv_v"][0] <= (pe_ocv_high + delV)),
+        real_dict["dqdv_v"][1],
+        np.nan,
+    )
+    return np.nanmean(dqdv_filt)
+
+
 def simulate_ocv(
     sod,
     fc_params,
@@ -244,7 +277,8 @@ def simulate_ocv(
 
     pe_q_arr0 = qpe0 * (half_cell_ocvs["pe_soc"] - ofs0)
     ne_q_arr0 = qne0 * (half_cell_ocvs["ne_soc"])
-
+    # fc_q0 = min(pe_q_arr0.max(), ne_q_arr0.max()) - max(pe_q_arr0.min(), ne_q_arr0.min())
+    # pe_q_arr = (pe_q_arr0 - fc_q0 * sod[2]) * (1 - sod[0])
     pe_q_arr = (pe_q_arr0 - pe_q_arr0.max() * sod[2]) * (1 - sod[0])
     ne_q_arr = ne_q_arr0 * (1 - sod[1])
 
@@ -340,6 +374,7 @@ def optimize_sod_with_ga(
     crossover_type="single_point",
     mutation_type="random",
     mutation_percent_genes=50,
+    opt_lims=((-0.2, 0.5), (-0.2, 0.5), (-0.3, 0.3))
 ):
     def generate_fitness_function(real_data, sim_params):
         chg_dict, rest_df = real_data
@@ -369,16 +404,21 @@ def optimize_sod_with_ga(
         mutation_type=mutation_type,
         mutation_percent_genes=mutation_percent_genes,
         gene_space=[
-            {"low": -0.1, "high": 0.5},
-            {"low": -0.1, "high": 0.5},
-            {"low": -0.3, "high": 0.3},
+            {"low": opt_lims[0][0], "high": opt_lims[0][1]},
+            {"low": opt_lims[1][0], "high": opt_lims[1][1]},
+            {"low": opt_lims[2][0], "high": opt_lims[2][1]},
         ],
     )
     ga_instance.run()
     return ga_instance
 
 
-def extract_sod_with_ga(real_data, fc_params_init, hc_names):
+def extract_sod_with_ga(
+        real_data,
+        fc_params_init,
+        hc_names,
+        opt_lims = ((-0.2, 0.5), (-0.2, 0.5), (-0.3, 0.3))
+        ):
 
     sim_params = (fc_params_init, hc_names)
     ga_opt = optimize_sod_with_ga(real_data, sim_params)
@@ -386,7 +426,7 @@ def extract_sod_with_ga(real_data, fc_params_init, hc_names):
     local_opt = minimize(
         opt_func,
         x0=ga_opt.best_solution()[0],
-        bounds=((-0.2, 0.5), (-0.2, 0.5), (-0.3, 0.3)),
+        bounds=opt_lims,
         args=(*real_data, *sim_params),
         method="Powell",
         # options={
@@ -395,6 +435,7 @@ def extract_sod_with_ga(real_data, fc_params_init, hc_names):
     )
 
     opt_sod = local_opt.x
+    print(f"Initialized SOD: {opt_sod}")
     fc_params = {
         "ofs": np.around(opt_sod[2], 4),
         "qpe_load": np.around(fc_params_init["qpe_load"] * (1 - opt_sod[0]), 2),
@@ -404,7 +445,14 @@ def extract_sod_with_ga(real_data, fc_params_init, hc_names):
     return fc_params, local_opt, ga_opt
 
 
-def extract_sod_evolution(cell_id, shift_dqdv, savepath, overwrite=False):
+def extract_sod_evolution(
+        cell_id: str,
+        shift_dqdv: bool,
+        savepath: str,
+        overwrite: bool=False,
+        use_peic: bool=False,
+        upper_v_cutoff: Optional[float]=np.nan,
+):
     start_time = time.time()
     if os.path.exists(savepath) and not overwrite:
         raise ValueError("File already exists. Set overwrite=True to overwrite.")
@@ -420,11 +468,17 @@ def extract_sod_evolution(cell_id, shift_dqdv, savepath, overwrite=False):
     cycle_data = cycle_data_all[cycle_data_all["nodeID"] == rpt_nums[0]].copy()
     real_data = filter_out_slow_charge(cycle_data, shift_dqdv)
 
+    if use_peic:
+        real_data_cropped = filter_out_slow_charge(cycle_data, shift_dqdv, upper_v=upper_v_cutoff)
+        peic0 = extract_peic(real_data, v_shifted=shift_dqdv)
+    else:
+        real_data_cropped = real_data.copy()
+
     fc_params_init = {"ofs": 0, "qpe_load": 3200, "qne_load": 3000}
-    hc_names = ("M26_2006_half_cell_pe_Co48_ch_mod1", "M26_2001_half_cell_ne_Co48_dch")
+    hc_names = ("M26_2006_half_cell_pe_Co48_ch", "M26_2001_half_cell_ne_Co48_dch")
 
     fc_params, local_opt, ga_opt = extract_sod_with_ga(
-        real_data, fc_params_init, hc_names
+        real_data_cropped, fc_params_init, hc_names
     )
     ga_opt.plot_fitness()
 
@@ -440,12 +494,28 @@ def extract_sod_evolution(cell_id, shift_dqdv, savepath, overwrite=False):
                 cycle_data_all[cycle_data_all["nodeID"] == rpt_num].copy(),
                 shift_dqdv_v=shift_dqdv,
             )
+            if use_peic:
+                real_data_cropped = filter_out_slow_charge(
+                    cycle_data_all[cycle_data_all["nodeID"] == rpt_num].copy(),
+                    shift_dqdv_v=shift_dqdv,
+                    upper_v=upper_v_cutoff,
+                )
+                peic = extract_peic(real_data, v_shifted=shift_dqdv)
+                lam_pe_peic = 1 - peic / peic0
+                print(f"[{cell_id}]{rpt_num}: LAM_pe from PEIC {lam_pe_peic}")
+                lam_pe_lims = (lam_pe_peic-0.02, lam_pe_peic+0.02)
+            else:
+                real_data_cropped = real_data.copy()
+                lam_pe_lims = (-0.05, 0.5)
+
+            lam_ne_lims = (-0.05, 0.5)
+            lli_lims = (-0.05, 0.3)
             sim_params = (fc_params, hc_names)
             local_opt = minimize(
                 opt_func,
                 x0=sod,
-                bounds=((-0.2, 0.5), (-0.2, 0.5), (-0.3, 0.3)),
-                args=(*real_data, *sim_params),
+                bounds=(lam_pe_lims, lam_ne_lims, lli_lims),
+                args=(*real_data_cropped, *sim_params),
                 method="Powell",
             )
 
@@ -466,7 +536,7 @@ def extract_sod_evolution(cell_id, shift_dqdv, savepath, overwrite=False):
                         f"[{cell_id}]Running global opt with GA for {rpt_num}: {local_opt.x}"
                     )
                     _, local_opt, _ = extract_sod_with_ga(
-                        real_data, fc_params, hc_names
+                        real_data_cropped, fc_params, hc_names, (lam_pe_lims, lam_ne_lims, lli_lims)
                     )
                     print(
                         f"[{cell_id}]Time elapsed: {(time.time() - start_time)/60:.0f}min"
@@ -492,14 +562,16 @@ if __name__ == "__main__":
     # for handler in logging.root.handlers[:]:
     #     logging.root.removeHandler(handler)
 
-    savepath = "/local/data/philomenaweng/projects/degradation/m26/extract_sod/v1"
+    savepath = "/local/data/philomenaweng/projects/degradation/m26/extract_sod/v3"
     overwrite = True
     shift_dqdv = True
     results = []
     start_time = time.time()
+    use_peic = True
+    upper_v_cutoff = 3.8
 
     def extract_sod_concurr(cell_id):
-        return cell_id, extract_sod_evolution(cell_id, shift_dqdv, savepath, overwrite)
+        return cell_id, extract_sod_evolution(cell_id, shift_dqdv, savepath, overwrite, use_peic, upper_v_cutoff)
 
     cell_id_list = processed_cells  # [:6]  ############################
     with concurrent.futures.ProcessPoolExecutor(max_workers=4) as executor:
